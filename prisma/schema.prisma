@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String  @map("user_id")
+  type               String
+  provider           String
+  providerAccountId  String  @map("provider_account_id")
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+ 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+ 
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+  @@map("sessions")
+}
+ 
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  post          Post[]
+ 
+  @@map("users")
+}
+ 
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+ 
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Post {
+  id            String               @id @default(cuid())
+  title         String
+  slug          String            @unique
+  content       String
+  summary       String?           // A short summary for previews or feeds
+  published     Boolean           @default(false)
+  authorId      String
+  author        User              @relation(fields: [authorId], references: [id])
+  categories    Category[]        @relation("PostCategories")
+  tags          Tag[]             @relation("PostTags")
+  comments      Comment[]
+  reactions     PostReaction[]    // User reactions (like/dislike, etc.)
+  media         Media[]           // Media files (images, videos, etc.)
+  views         Int               @default(0) // Post view counter
+  status        PostStatus        @default(DRAFT) // Post status: Draft, Published, etc.
+  scheduledAt   DateTime?         // Post scheduling
+  publishedAt   DateTime?         // Time when the post was actually published
+  seo           SEOData?          // Advanced SEO optimization fields
+  isFeatured    Boolean           @default(false)
+  isPinned      Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model Category {
+  id    Int      @id @default(autoincrement())
+  name  String   @unique
+  slug  String   @unique
+  description String?
+  image String?
+  posts Post[]
+}
+
+model Media {
+  id        Int      @id @default(autoincrement())
+  url       String   // URL of the media file (could be images, videos, etc.)
+  type      MediaType
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id])
+  uploadedAt DateTime @default(now())
+}
+
+model SEOData {
+  id             Int     @id @default(autoincrement())
+  postId         String
+  post           Post    @relation(fields: [postId], references: [id])
+  seoTitle       String?
+  seoDescription String?
+  keywords       String[]
+}
